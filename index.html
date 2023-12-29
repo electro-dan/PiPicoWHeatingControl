@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Living Room Heating</title>
+    <style>
+    html {
+      font-family: Arial;
+      display: inline-block;
+      text-align: center;
+    }
+    p {
+      font-size: 1.2rem;
+    }
+    body {
+      margin: 0;
+    }
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-color: black;
+        color: #ccc;
+      }
+    }
+
+    .top_nav {
+      overflow: hidden;
+      background-color: #5F507A;
+      color: white;
+      font-size: 1rem;
+    }
+    .content {
+      padding: 30px;
+    }
+    .card {
+      background-color: white;
+      box-shadow: 2px 2px 12px 1px rgba(140,140,140,.5);
+    }
+    @media (prefers-color-scheme: dark) {
+      .card {
+        background-color: black;
+      }
+    }
+    .cards {
+      max-width: 800px;
+      margin: 0 auto;
+      display: grid;
+      grid-gap: 2rem;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+    .card h2 {
+      font-size: 1.5rem;
+    }
+    .card p {
+      font-size: 3rem;
+    }
+    button {
+        background-color: transparent;
+        border: 1px solid black;
+        cursor: pointer;
+        display: inline-block;
+        text-align: center;
+        font-size: 1.5rem;
+        padding: 0.5rem;
+    }
+    @media (prefers-color-scheme: dark) {
+      button {
+        border: 1px solid white;
+        color:#ccc;
+      }
+    }
+    </style>
+  </head>
+  <body>
+    <div class="top_nav">
+      <h1>Living Room Heating</h1>
+    </div>
+    <div class="content">
+      <div class="cards">
+        <div class="card">
+          <h2>
+            Heating
+          </h2>
+          <p>
+            <span id="isHeating">OFF</span>
+          </p>
+        </div>
+        <div class="card">
+          <h2>
+            Temperature
+          </h2>
+          <p>
+            <span id="temperature">-</span> &deg;C
+          </p>
+        </div>
+        <div class="card">
+          <h2 id="">
+            Status
+          </h2>
+          <p>
+            <span id="heatingState">ENABLED</span>
+            <br>
+            <button id="btnTrigger" class="" onclick="triggerHeating()">Enable / Disable</button>
+          </p>
+        </div>
+        <div class="card">
+          <h2>
+            Target Temperature
+          </h2>
+          <p>
+            <span id="temperatureTarget">20.0</span> &deg;C
+            <br>
+            <input id="inputTarget" onchange="setTargetTemperature()" type="range" min="20" max="28" step="0.5" value="20">
+          </p>
+        </div>
+        <div class="card">
+          <h2>
+            On Time
+          </h2>
+          <p>
+            <span id="onTime">12:00 AM</span>
+            <br>
+            <input id="onTimeInput" onchange="setTime('on')" type="range" min="0" max="1410" step="30" value="0">
+          </p>
+        </div>
+        <div class="card">
+          <h2>
+            Off Time
+          </h2>
+          <p>
+            <span id="offTime">12:00 AM</span>
+            <br>
+            <input id="offTimeInput" onchange="setTime('off')" type="range" min="0" max="1410" step="30" value="0">
+          </p>
+        </div>
+      </div>
+    </div>
+  </body>
+
+  <script src="/heating.js"></script>
+
+</html>
