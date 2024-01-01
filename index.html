@@ -110,7 +110,7 @@
           <p>
             <span id="temperatureTarget">20.0</span> &deg;C
             <br>
-            <input id="inputTarget" onchange="setTargetTemperature()" type="range" min="20" max="28" step="0.5" value="20">
+            <input id="inputTarget" onchange="setTargetTemperature()" oninput="moveTargetTemperature()" type="range" min="20" max="28" step="0.5" value="20">
           </p>
         </div>
         <div class="card">
@@ -120,7 +120,7 @@
           <p>
             <span id="onTime">12:00 AM</span>
             <br>
-            <input id="onTimeInput" onchange="setTime('on')" type="range" min="0" max="1410" step="30" value="0">
+            <input id="onTimeInput" onchange="setTime('on')" oninput="moveTime('on')" type="range" min="0" max="1410" step="30" value="0">
           </p>
         </div>
         <div class="card">
@@ -130,7 +130,7 @@
           <p>
             <span id="offTime">12:00 AM</span>
             <br>
-            <input id="offTimeInput" onchange="setTime('off')" type="range" min="0" max="1410" step="30" value="0">
+            <input id="offTimeInput" onchange="setTime('off')" oninput="moveTime('off')" type="range" min="0" max="1410" step="30" value="0">
           </p>
         </div>
       </div>

@@ -12,5 +12,15 @@
     ],
     "python.analysis.extraPaths": [
         ".vscode/Pico-W-Stub"
+    ],
+    "micropico.syncFileTypes": [
+        "py",
+        "log",
+        "json",
+        "xml",
+        "html",
+        "js",
+        "css",
+        "mpy"
     ]
 }

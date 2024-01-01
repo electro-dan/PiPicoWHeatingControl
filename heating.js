@@ -1,5 +1,7 @@
 var isChanging = false;
+var changingTimeout;
 
+// Called on load, then every second
 function getStatus() {
     const formData = new FormData();
     formData.append("action", "get_status");
@@ -24,12 +26,27 @@ function getStatus() {
     }
     xhttp.open("POST", "/api", true);
     xhttp.send(formData);
-
-    if (isChanging)
-        isChanging = false;
 }
 
+// Functions to prevent the interval reseting displayed values when changing a control
+function resetChanging() {
+    isChanging = false;
+}
 
+function startChange() {
+    clearTimeout(changingTimeout);
+    isChanging = true;
+}
+
+function timeoutChange() {
+    changingTimeout = setTimeout(resetChanging, 10000);
+}
+
+function endChange() {
+    changingTimeout = setTimeout(resetChanging, 1000);
+}
+
+// Manually trigger heating on or off
 function triggerHeating() {
     const jsonData = {
         "action": "trigger_heating"
@@ -52,7 +69,10 @@ function triggerHeating() {
     xhttp.send(JSON.stringify(jsonData));
 }
 
+// Set the target temperature
 function setTargetTemperature() {
+    startChange();
+
     const jsonData = {
         "action": "set_target_temperature",
         "new_target": document.getElementById("inputTarget").value
@@ -73,10 +93,19 @@ function setTargetTemperature() {
     xhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
     xhttp.send(JSON.stringify(jsonData));
 
-    isChanging = true;
+    endChange();
 }
 
+function moveTargetTemperature() {
+    startChange();
+    document.getElementById("temperatureTarget").innerHTML = document.getElementById("inputTarget").value;
+    timeoutChange();
+}
+
+// This function is used when the control is released - the result is saved
 function setTime(onOrOff) {
+    startChange();
+
     const jsonData = {
         "action": "set_time",
         "on_or_off": onOrOff,
@@ -98,9 +127,17 @@ function setTime(onOrOff) {
     xhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
     xhttp.send(JSON.stringify(jsonData));
 
-    isChanging = true;
+    endChange();
 }
 
+// This function is used when the control slider is dragged
+function moveTime(onOrOff) {
+    startChange();
+    document.getElementById(onOrOff + "Time").innerHTML = formatTime(document.getElementById(onOrOff + "TimeInput").value);
+    timeoutChange();
+}
+
+// Used by above functions to format the set time into 12h format hh:mm
 function formatTime(timeIn) {
     var hour = Math.floor(timeIn / 60)
     var ampm = " AM"
