@@ -69,6 +69,23 @@
         color:#ccc;
       }
     }
+    @media (pointer: coarse), (hover: none) {
+      [title] {
+        position: relative;
+        display: flex;
+        justify-content: center;
+      }
+      [title]:focus::after {
+        content: attr(title);
+        position: absolute;
+        top: 90%;
+        color: #000;
+        background-color: #fff;
+        border: 1px solid;
+        width: fit-content;
+        padding: 3px;
+      }
+    }
     </style>
   </head>
   <body>
@@ -77,14 +94,6 @@
     </div>
     <div class="content">
       <div class="cards">
-        <div class="card">
-          <h2>
-            Heating
-          </h2>
-          <p>
-            <span id="isHeating">OFF</span>
-          </p>
-        </div>
         <div class="card">
           <h2>
             Temperature
@@ -98,24 +107,34 @@
             Status
           </h2>
           <p>
-            <span id="heatingState">ENABLED</span>
+            <span id="heatingState">ENABLED</span> - <span id="isHeating">OFF</span>
             <br>
             <button id="btnTrigger" class="" onclick="triggerHeating()">Enable / Disable</button>
           </p>
         </div>
         <div class="card">
-          <h2>
-            Target Temperature
+          <h2 title="Target temperature inside high start/end time. Will heat to this target + 0.25, then cool until this target - 0.25.">
+            High Target Temperature
           </h2>
           <p>
-            <span id="temperatureTarget">20.0</span> &deg;C
+            <span id="temperatureTargetHigh">24.0</span> &deg;C
             <br>
-            <input id="inputTarget" onchange="setTargetTemperature()" oninput="moveTargetTemperature()" type="range" min="20" max="28" step="0.5" value="20">
+            <input id="inputTargetHigh" onchange="setTargetTemperature('High')" oninput="moveTargetTemperature('High')" type="range" min="20" max="28" step="0.5" value="24">
+          </p>
+        </div>
+        <div class="card">
+          <h2 title="Target temperature outside high start/end time. Set to 17 to essentially turn heating off during this time.">
+            Low Target Temperature
+          </h2>
+          <p>
+            <span id="temperatureTargetLow">22.0</span> &deg;C
+            <br>
+            <input id="inputTargetLow" onchange="setTargetTemperature('Low')" oninput="moveTargetTemperature('Low')" type="range" min="17" max="25" step="0.5" value="22">
           </p>
         </div>
         <div class="card">
           <h2>
-            On Time
+            High Start Time
           </h2>
           <p>
             <span id="onTime">12:00 AM</span>
@@ -125,7 +144,7 @@
         </div>
         <div class="card">
           <h2>
-            Off Time
+            High End Time
           </h2>
           <p>
             <span id="offTime">12:00 AM</span>

@@ -19,14 +19,16 @@ heating_pin = Pin(16, Pin.OUT)
 is_heating = 0
 heating_state = 0
 ds18b20_temperature = 0.00
-target_temperature = 20.0
-on_time = 570 # 9:30
+target_temperature_low = 22.0
+target_temperature_high = 24.0
+on_time = 450 # 7:30
 off_time = 1290 # 21:30
 
 # coroutine to handle HTTP request
 async def handle_request(reader, writer):
     global heating_state
-    global target_temperature
+    global target_temperature_low
+    global target_temperature_high
     global on_time
     global off_time
     try:
@@ -48,7 +50,8 @@ async def handle_request(reader, writer):
                     'is_heating': "ON" if is_heating else "OFF",
                     'heating_state': "ENABLED" if heating_state else "DISABLED",
                     'temperature_value': ds18b20_temperature,
-                    'target_temperature': target_temperature,
+                    'target_temperature_low': target_temperature_low,
+                    'target_temperature_high': target_temperature_high,
                     'on_time': on_time,
                     'off_time': off_time
                 }
@@ -67,13 +70,17 @@ async def handle_request(reader, writer):
                 response_builder.set_body_from_dict(response_obj)
             elif action == "set_target_temperature":
                 # Set target temperature
+                low_or_high = request.data()['low_or_high']
                 new_target = float(request.data()['new_target'])
                 if new_target >= 20 and new_target <= 28:
-                    target_temperature = new_target
+                    if low_or_high == "Low":
+                        target_temperature_low = new_target
+                    else:
+                        target_temperature_high = new_target
                     save_data()
                     response_obj = {
                         'status': 'OK',
-                        'target_temperature': target_temperature
+                        'target_temperature': new_target
                     }
                     response_builder.set_body_from_dict(response_obj)
                 else:
@@ -154,15 +161,16 @@ async def main():
         # Read temperature conversion
         ds18b20_temperature = round(ds.read_temp(r), 2)
 
+        # Temperature to target - default to high
+        target_temperature = target_temperature_high
+
         # Convert local time into minutes since midnight
         current_time = (time.localtime()[3] * 60) + time.localtime()[4]
         # If on/off times are not equal, change heating state (will heat) if local time matches
         if on_time != off_time:
-            if current_time == on_time:
-                heating_state = 1
-            if current_time == off_time:
-                heating_state = 0
-        
+            if current_time < on_time or current_time > off_time:
+                target_temperature = target_temperature_low
+
         # If heating state (will heat) is true
         if heating_state:
             # Turn off heating if temperature is 0.25 degrees above target
@@ -186,20 +194,23 @@ async def main():
 def save_data():
     print('Saving variables...')
     with open('config.txt', 'w+') as f:
-        f.write(str(target_temperature) + "|" + str(on_time) + "|" + str(off_time))
+        f.write(str(target_temperature_high) + "|" + str(on_time) + "|" + str(off_time) + '|' + str(target_temperature_low))
 
 # Read variables from the eeprom - done at boot
 def read_data():
-    global target_temperature
+    global target_temperature_low
+    global target_temperature_high
     global on_time
     global off_time
 
     with open('config.txt', 'r') as f:
         fdata = f.readline()
         print(fdata)
-        target_temperature = float(fdata.split("|")[0])
-        on_time = int(fdata.split("|")[1])
-        off_time = int(fdata.split("|")[2])
+        if fdata.split("|").count == 4:
+            target_temperature_high = float(fdata.split("|")[0])
+            on_time = int(fdata.split("|")[1])
+            off_time = int(fdata.split("|")[2])
+            target_temperature_low = float(fdata.split("|")[3])
 
 
 # Entry Here
