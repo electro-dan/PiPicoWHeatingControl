@@ -11,8 +11,8 @@ function getStatus() {
         console.log(json_response);
 
         if (json_response.status == "OK") {
-            document.getElementById("isHeating").innerHTML = json_response.is_heating;
-            document.getElementById("heatingState").innerHTML = json_response.heating_state;
+            document.getElementById("isHeating").innerHTML = (json_response.is_heating ? "ON" : "OFF");
+            document.getElementById("heatingState").innerHTML = (json_response.heating_state ? "ENABLED" : "DISABLED");
             document.getElementById("temperature").innerHTML = json_response.temperature_value;
             if (!isChanging) {
                 document.getElementById("temperatureTargetHigh").innerHTML = json_response.target_temperature_high;
@@ -60,7 +60,7 @@ function triggerHeating() {
 
         if (json_response.status == "OK") {
             // reset led indicator to none
-            document.getElementById("heatingState").innerHTML = json_response.heating_state;
+            document.getElementById("heatingState").innerHTML = (json_response.heating_state ? "ENABLED" : "DISABLED");
         } else {
             alert("Error setting heating state");
         }
@@ -151,5 +151,9 @@ function formatTime(timeIn) {
     return String(hour) + ":" + String(timeIn % 60).padStart(2, "0") + ampm;
 }
 
+//setInterval(getStatus, 1000);
+// Read status when page is focused
+window.onfocus = function() {
+    getStatus();
+}
 getStatus();
-setInterval(getStatus, 1000);

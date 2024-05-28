@@ -10,15 +10,16 @@ class WiFiConnection:
     subnet_mask = ""
     gateway = ""
     dns_server = ""
-    wlan = None
+    network.hostname = "heating"
+    # set WiFi to station interface
+    wlan = network.WLAN(network.STA_IF)
 
     def __init__(self):
         pass
 
+
     @classmethod
-    def start_station_mode(cls, print_progress=False):
-        # set WiFi to station interface
-        cls.wlan = network.WLAN(network.STA_IF)
+    def do_connect(cls, print_progress=False):
         # activate the network interface
         cls.wlan.active(True)
         # connect to wifi network
@@ -60,3 +61,8 @@ class WiFiConnection:
             if print_progress:
                 print('ip = ' + str(cls.ip))
             return True
+
+    @classmethod
+    def is_connected(cls):
+        return cls.wlan.isconnected()
+    
