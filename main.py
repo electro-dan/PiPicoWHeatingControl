@@ -10,10 +10,11 @@ from RequestParser import RequestParser
 from ResponseBuilder import ResponseBuilder
 from WiFiConnection import WiFiConnection
 from machine import WDT
+from machine import Timer
 
 # Watchdog timer - set to 8 seconds to allow enough time for WiFi connect attempts
 # Will reset the Pico if unresponsive after 8 seconds. Use wdt.feed() to indicate 'alive'
-wdt = WDT(timeout=8000) #timeout is in ms
+#wdt = WDT(timeout=8000) #timeout is in ms
  
 # set up temperature sensor with onewire
 ow = OneWire(Pin(22))
@@ -29,6 +30,7 @@ target_temperature_low = 22.0
 target_temperature_high = 24.0
 on_time = 450 # 7:30
 off_time = 1290 # 21:30
+counter = 0
 
 # coroutine to handle HTTP request
 async def handle_request(reader, writer):
@@ -142,64 +144,86 @@ async def main():
     server = uasyncio.start_server(handle_request, "0.0.0.0", 80)
     uasyncio.create_task(server)
 
-    ntptime.settime()
-    print(time.localtime())
+    updated_today = False
 
-    # start the heater task
-    print('Starting heater scheduler...')
-    counter = 0
     while True:
+        # This loop just monitors the WiFi connection and tries re-connects if disconnected
         # Connect to WiFi if disconnected
         if not WiFiConnection.is_connected():
-            if not WiFiConnection.do_connect(True):
-                raise RuntimeError('network connection failed')
+            # try to connect again
+            print('WiFi connect...')
+            if WiFiConnection.do_connect(True):
+                # Time will be in UTC only
+                try:
+                    ntptime.settime()
+                except:
+                    print("NTP timeout")
+                finally:
+                    print(time.localtime())
+        else:
+            # After midnight, update NTP time once a day
+            if time.localtime()[3] == 0:
+                if not updated_today:
+                    try:
+                        ntptime.settime()
+                        updated_today = True
+                    except:
+                        print("NTP timeout")
+                    finally:
+                        print(time.localtime())
+            else:
+                updated_today = False
+
+        await uasyncio.sleep_ms(2000)
         
-        wdt.feed() # Reset watchdog
+        #wdt.feed() # Reset watchdog
 
-        # 30 seconds between temperature readings
-        if counter == 30:
-            # Read temperature
-            ds.convert_temp()
-            # 1 sec wait before reading result
-            await uasyncio.sleep(1)
-            counter = 0
+# Main timer interrupt - runs every second
+# This will activate / deactivate heating based on whether the local time is within an active timer 
+# and whether the temperature limit has been reached
+# Will measure the temperature every 30 seconds
+def timer_check_interrupt(pin):
+    global ds18b20_temperature
+    global heating_state
+    global is_heating
+    global counter
 
-        global ds18b20_temperature
-        global heating_state
-        global is_heating
-
+    # 30 seconds between temperature readings
+    if counter == 29:
+        # Read temperature
+        ds.convert_temp()
+    # 1 sec wait before reading result
+    if counter == 30:
         # Read temperature conversion
         ds18b20_temperature = round(ds.read_temp(r), 2)
+        # Reset counter
+        counter = 0
 
-        # Temperature to target - default to high
-        target_temperature = target_temperature_high
+    # Temperature to target - default to high
+    target_temperature = target_temperature_high
 
-        # Convert local time into minutes since midnight
-        current_time = (time.localtime()[3] * 60) + time.localtime()[4]
-        # If on/off times are not equal, change heating state (will heat) if local time matches
-        if on_time != off_time:
-            if current_time < on_time or current_time > off_time:
-                target_temperature = target_temperature_low
+    # Convert local time into minutes since midnight
+    current_time = (time.localtime()[3] * 60) + time.localtime()[4]
+    # If on/off times are not equal, change heating state (will heat) if local time matches
+    if on_time != off_time:
+        if current_time < on_time or current_time > off_time:
+            target_temperature = target_temperature_low
 
-        # If heating state (will heat) is true
-        if heating_state:
-            # Turn off heating if temperature is 0.25 degrees above target
-            if is_heating and ds18b20_temperature > (target_temperature + 0.25):
-                is_heating = False
-            # Turn on heating is temperature is 0.25 degrees below target
-            elif not is_heating and ds18b20_temperature < (target_temperature - 0.25):
-                is_heating = True
-        else:
+    # If heating state (will heat) is true
+    if heating_state:
+        # Turn off heating if temperature is 0.25 degrees above target
+        if is_heating and ds18b20_temperature > (target_temperature + 0.25):
             is_heating = False
-        
-        # Enable or disable the output
-        heating_pin.value(is_heating)
+        # Turn on heating is temperature is 0.25 degrees below target
+        elif not is_heating and ds18b20_temperature < (target_temperature - 0.25):
+            is_heating = True
+    else:
+        is_heating = False
+    
+    # Enable or disable the output
+    heating_pin.value(is_heating)
 
-        # Loop sleeps 1 second
-        await uasyncio.sleep(1)
-        counter += 1
-
-        wdt.feed() # Reset watchdog
+    counter += 1
 
 # Save variables to the eeprom
 def save_data():
@@ -224,13 +248,11 @@ def read_data():
 
 
 # Entry Here
-# Connect to WiFi
-if not WiFiConnection.do_connect(True):
-    raise RuntimeError('network connection failed')
-wdt.feed() # Reset watchdog
-
 # Read any existing saved data
 read_data()
+
+# Start a timer to interrupt every 1 second
+timer_check = Timer(mode=Timer.PERIODIC, period=1000, callback=timer_check_interrupt)
 
 # start asyncio task and loop
 try:
