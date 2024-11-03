@@ -86,7 +86,7 @@
     }
     @media (prefers-color-scheme: dark) {
       button {
-        border: 1px solid white;
+        border: 1px solid #ccc;
         color:#ccc;
       }
     }
@@ -141,7 +141,7 @@
           <p>
             <span id="highTemperature">24.0</span> &deg;C
             <br>
-            <input id="highTarget" oninput="moveTargetTemperature('high')" type="range" min="20" max="28" step="0.5" value="24" disabled>
+            <input id="highTargetInput" oninput="moveTargetTemperature('high')" type="range" min="20" max="28" step="0.5" value="24" disabled>
           </p>
         </div>
         <div class="card">
@@ -152,12 +152,12 @@
           <p>
             <span id="lowTemperature">22.0</span> &deg;C
             <br>
-            <input id="lowTarget" oninput="moveTargetTemperature('low')" type="range" min="17" max="25" step="0.5" value="22" disabled>
+            <input id="lowTargetInput" oninput="moveTargetTemperature('low')" type="range" min="17" max="25" step="0.5" value="22" disabled>
           </p>
         </div>
         <div class="card">
           <h2>
-            High Start <button id="onBtnE" class="smallbtn" onclick="editTime('on')">&#x1F4DD;</button>
+            High Starts <button id="onBtnE" class="smallbtn" onclick="editTime('on')">&#x1F4DD;</button>
             <button id="onBtnC" class="cancel" onclick="cancelTime('on')">&#x27F2;</button>
           </h2>
           <p>
@@ -168,7 +168,7 @@
         </div>
         <div class="card">
           <h2>
-            High End <button id="offBtnE" class="smallbtn" onclick="editTime('off')">&#x1F4DD;</button>
+            High Finishes <button id="offBtnE" class="smallbtn" onclick="editTime('off')">&#x1F4DD;</button>
             <button id="offBtnC" class="cancel" onclick="cancelTime('off')">&#x27F2;</button>
           </h2>
           <p>

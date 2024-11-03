@@ -16,9 +16,9 @@ function getStatus() {
             document.getElementById("temperature").innerHTML = json_response.temperature_value;
             if (!isChanging) {
                 document.getElementById("highTemperature").innerHTML = json_response.target_temperature_high;
-                document.getElementById("highTarget").value = json_response.target_temperature_high;
+                document.getElementById("highTargetInput").value = json_response.target_temperature_high;
                 document.getElementById("lowTemperature").innerHTML = json_response.target_temperature_low;
-                document.getElementById("lowTarget").value = json_response.target_temperature_low;
+                document.getElementById("lowTargetInput").value = json_response.target_temperature_low;
                 document.getElementById("onTime").innerHTML = formatTime(json_response.on_time);
                 document.getElementById("onTimeInput").value = json_response.on_time;
                 document.getElementById("offTime").innerHTML = formatTime(json_response.off_time);
@@ -72,7 +72,7 @@ function triggerHeating() {
 
 function moveTargetTemperature(lowOrHigh) {
     startChange();
-    document.getElementById(lowOrHigh + "Temperature").innerHTML = document.getElementById(lowOrHigh + "Target").value;
+    document.getElementById(lowOrHigh + "Temperature").innerHTML = document.getElementById(lowOrHigh + "TargetInput").value;
     timeoutChange();
 }
 
@@ -97,9 +97,9 @@ function formatTime(timeIn) {
 
 function editTemp(lowOrHigh) {
     // Check state of a control
-    if (document.getElementById(lowOrHigh + "Target").disabled) {
+    if (document.getElementById(lowOrHigh + "TargetInput").disabled) {
         // Enable
-        document.getElementById(lowOrHigh + "Target").disabled = false;
+        document.getElementById(lowOrHigh + "TargetInput").disabled = false;
         // Change to save icon
         document.getElementById(lowOrHigh + "BtnE").innerHTML = "&#x1F4BE;";
         // Show cancel button
@@ -111,7 +111,7 @@ function editTemp(lowOrHigh) {
         const jsonData = {
             "action": "set_target_temperature",
             "low_or_high": lowOrHigh,
-            "new_target": document.getElementById(lowOrHigh + "Target").value
+            "new_target": document.getElementById(lowOrHigh + "TargetInput").value
         };
         const xhttp = new XMLHttpRequest();
         xhttp.onload = function() {
@@ -130,7 +130,7 @@ function editTemp(lowOrHigh) {
         xhttp.send(JSON.stringify(jsonData));
 
         // Disable
-        document.getElementById(lowOrHigh + "Target").disabled = true;
+        document.getElementById(lowOrHigh + "TargetInput").disabled = true;
         // Change to edit icon
         document.getElementById(lowOrHigh + "BtnE").innerHTML = "&#x1F4DD;";
         // Hide cancel button
@@ -143,7 +143,7 @@ function editTemp(lowOrHigh) {
 
 function cancelTemp(lowOrHigh) {
     // Disable
-    document.getElementById(lowOrHigh + "Target").disabled = true;
+    document.getElementById(lowOrHigh + "TargetInput").disabled = true;
     // Change to edit icon
     document.getElementById(lowOrHigh + "BtnE").innerHTML = "&#x1F4DD;";
     // Hide cancel button
@@ -154,9 +154,9 @@ function cancelTemp(lowOrHigh) {
 
 function editTime(onOrOff) {
     // Check state of a control
-    if (document.getElementById(onOrOff + "Time").disabled) {
+    if (document.getElementById(onOrOff + "TimeInput").disabled) {
         // Enable
-        document.getElementById(onOrOff + "Time").disabled = false;
+        document.getElementById(onOrOff + "TimeInput").disabled = false;
         // Change to save icon
         document.getElementById(onOrOff + "BtnE").innerHTML = "&#x1F4BE;";
         // Show cancel button
@@ -187,7 +187,7 @@ function editTime(onOrOff) {
         xhttp.send(JSON.stringify(jsonData));
 
         // Disable
-        document.getElementById(onOrOff + "Time").disabled = true;
+        document.getElementById(onOrOff + "TimeInput").disabled = true;
         // Change to edit icon
         document.getElementById(onOrOff + "BtnE").innerHTML = "&#x1F4DD;";
         // Hide cancel button
@@ -200,7 +200,7 @@ function editTime(onOrOff) {
 
 function cancelTime(onOrOff) {
     // Disable
-    document.getElementById(onOrOff + "Time").disabled = true;
+    document.getElementById(onOrOff + "TimeInput").disabled = true;
     // Change to edit icon
     document.getElementById(onOrOff + "BtnE").innerHTML = "&#x1F4DD;";
     // Hide cancel button
