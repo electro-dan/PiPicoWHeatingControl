@@ -15,10 +15,10 @@ function getStatus() {
             document.getElementById("heatingState").innerHTML = (json_response.heating_state ? "ENABLED" : "DISABLED");
             document.getElementById("temperature").innerHTML = json_response.temperature_value;
             if (!isChanging) {
-                document.getElementById("temperatureTargetHigh").innerHTML = json_response.target_temperature_high;
-                document.getElementById("inputTargetHigh").value = json_response.target_temperature_high;
-                document.getElementById("temperatureTargetLow").innerHTML = json_response.target_temperature_low;
-                document.getElementById("inputTargetLow").value = json_response.target_temperature_low;
+                document.getElementById("highTemperature").innerHTML = json_response.target_temperature_high;
+                document.getElementById("highTarget").value = json_response.target_temperature_high;
+                document.getElementById("lowTemperature").innerHTML = json_response.target_temperature_low;
+                document.getElementById("lowTarget").value = json_response.target_temperature_low;
                 document.getElementById("onTime").innerHTML = formatTime(json_response.on_time);
                 document.getElementById("onTimeInput").value = json_response.on_time;
                 document.getElementById("offTime").innerHTML = formatTime(json_response.off_time);
@@ -59,78 +59,21 @@ function triggerHeating() {
         console.log(json_response);
 
         if (json_response.status == "OK") {
-            // reset led indicator to none
+            // Show heating state
             document.getElementById("heatingState").innerHTML = (json_response.heating_state ? "ENABLED" : "DISABLED");
         } else {
             alert("Error setting heating state");
         }
-
     }
     xhttp.open("POST", "/api", true);
     xhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
     xhttp.send(JSON.stringify(jsonData));
-}
-
-// Set the target temperature
-function setTargetTemperature(lowOrHigh) {
-    startChange();
-
-    const jsonData = {
-        "action": "set_target_temperature",
-        "low_or_high": lowOrHigh,
-        "new_target": document.getElementById("inputTarget" + lowOrHigh).value
-    };
-    const xhttp = new XMLHttpRequest();
-    xhttp.onload = function() {
-        var json_response = JSON.parse(this.responseText);
-        console.log(json_response);
-
-        if (json_response.status == "OK") {
-            // reset led indicator to none
-            document.getElementById("temperatureTarget" + lowOrHigh).innerHTML = json_response.target_temperature;
-        } else {
-            alert("Error setting target temperature");
-        }
-    }
-    xhttp.open("POST", "/api", true);
-    xhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-    xhttp.send(JSON.stringify(jsonData));
-
-    endChange();
 }
 
 function moveTargetTemperature(lowOrHigh) {
     startChange();
-    document.getElementById("temperatureTarget" + lowOrHigh).innerHTML = document.getElementById("inputTarget" + lowOrHigh).value;
+    document.getElementById(lowOrHigh + "Temperature").innerHTML = document.getElementById(lowOrHigh + "Target").value;
     timeoutChange();
-}
-
-// This function is used when the control is released - the result is saved
-function setTime(onOrOff) {
-    startChange();
-
-    const jsonData = {
-        "action": "set_time",
-        "on_or_off": onOrOff,
-        "new_time": document.getElementById(onOrOff + "TimeInput").value
-    };
-    const xhttp = new XMLHttpRequest();
-    xhttp.onload = function() {
-        var json_response = JSON.parse(this.responseText);
-        console.log(json_response);
-
-        if (json_response.status == "OK") {
-            // reset led indicator to none
-            document.getElementById(onOrOff + "Time").innerHTML = formatTime(json_response.time_set);
-        } else {
-            alert("Error setting on/off time");
-        }
-    }
-    xhttp.open("POST", "/api", true);
-    xhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-    xhttp.send(JSON.stringify(jsonData));
-
-    endChange();
 }
 
 // This function is used when the control slider is dragged
@@ -149,6 +92,121 @@ function formatTime(timeIn) {
     if (hour > 12)
         hour -= 12
     return String(hour) + ":" + String(timeIn % 60).padStart(2, "0") + ampm;
+}
+
+
+function editTemp(lowOrHigh) {
+    // Check state of a control
+    if (document.getElementById(lowOrHigh + "Target").disabled) {
+        // Enable
+        document.getElementById(lowOrHigh + "Target").disabled = false;
+        // Change to save icon
+        document.getElementById(lowOrHigh + "BtnE").innerHTML = "&#x1F4BE;";
+        // Show cancel button
+        document.getElementById(lowOrHigh + "BtnC").style.display = "block";
+    } else {
+        startChange();
+
+        // Apply the changes
+        const jsonData = {
+            "action": "set_target_temperature",
+            "low_or_high": lowOrHigh,
+            "new_target": document.getElementById(lowOrHigh + "Target").value
+        };
+        const xhttp = new XMLHttpRequest();
+        xhttp.onload = function() {
+            var json_response = JSON.parse(this.responseText);
+            console.log(json_response);
+    
+            if (json_response.status == "OK") {
+                // Show new temperature target
+                document.getElementById(lowOrHigh + "Temperature").innerHTML = json_response.target_temperature;
+            } else {
+                alert("Error setting target temperature");
+            }
+        }
+        xhttp.open("POST", "/api", true);
+        xhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+        xhttp.send(JSON.stringify(jsonData));
+
+        // Disable
+        document.getElementById(lowOrHigh + "Target").disabled = true;
+        // Change to edit icon
+        document.getElementById(lowOrHigh + "BtnE").innerHTML = "&#x1F4DD;";
+        // Hide cancel button
+        document.getElementById(lowOrHigh + "BtnC").style.display = "none";
+        endChange();
+        // Get status after one second
+        setTimeout(getStatus, 1100);
+    }
+}
+
+function cancelTemp(lowOrHigh) {
+    // Disable
+    document.getElementById(lowOrHigh + "Target").disabled = true;
+    // Change to edit icon
+    document.getElementById(lowOrHigh + "BtnE").innerHTML = "&#x1F4DD;";
+    // Hide cancel button
+    document.getElementById(lowOrHigh + "BtnC").style.display = "none";
+    // Get original status
+    getStatus();
+}
+
+function editTime(onOrOff) {
+    // Check state of a control
+    if (document.getElementById(onOrOff + "Time").disabled) {
+        // Enable
+        document.getElementById(onOrOff + "Time").disabled = false;
+        // Change to save icon
+        document.getElementById(onOrOff + "BtnE").innerHTML = "&#x1F4BE;";
+        // Show cancel button
+        document.getElementById(onOrOff + "BtnC").style.display = "block";
+    } else {
+        startChange();
+
+        // Apply the changes
+        const jsonData = {
+            "action": "set_time",
+            "on_or_off": onOrOff,
+            "new_time": document.getElementById(onOrOff + "TimeInput").value
+        };
+        const xhttp = new XMLHttpRequest();
+        xhttp.onload = function() {
+            var json_response = JSON.parse(this.responseText);
+            console.log(json_response);
+    
+            if (json_response.status == "OK") {
+                // Show new time
+                document.getElementById(onOrOff + "Time").innerHTML = formatTime(json_response.time_set);
+            } else {
+                alert("Error setting on/off time");
+            }
+        }
+        xhttp.open("POST", "/api", true);
+        xhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+        xhttp.send(JSON.stringify(jsonData));
+
+        // Disable
+        document.getElementById(onOrOff + "Time").disabled = true;
+        // Change to edit icon
+        document.getElementById(onOrOff + "BtnE").innerHTML = "&#x1F4DD;";
+        // Hide cancel button
+        document.getElementById(onOrOff + "BtnC").style.display = "none";
+        endChange();
+        // Get status after one second
+        setTimeout(getStatus, 1100);
+    }
+}
+
+function cancelTime(onOrOff) {
+    // Disable
+    document.getElementById(onOrOff + "Time").disabled = true;
+    // Change to edit icon
+    document.getElementById(onOrOff + "BtnE").innerHTML = "&#x1F4DD;";
+    // Hide cancel button
+    document.getElementById(onOrOff + "BtnC").style.display = "none";
+    // Get original status
+    getStatus();
 }
 
 //setInterval(getStatus, 1000);

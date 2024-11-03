@@ -77,7 +77,7 @@ async def handle_request(reader, writer):
                 low_or_high = request.data()['low_or_high']
                 new_target = float(request.data()['new_target'])
                 if new_target >= 20 and new_target <= 28: # Has to be between 20 and 28 degrees
-                    if low_or_high == "Low":
+                    if low_or_high == "low":
                         target_temperature_low = new_target
                     else:
                         target_temperature_high = new_target

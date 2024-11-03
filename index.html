@@ -35,6 +35,7 @@
     .card {
       background-color: white;
       box-shadow: 2px 2px 12px 1px rgba(140,140,140,.5);
+      position: relative;
     }
     @media (prefers-color-scheme: dark) {
       .card {
@@ -50,6 +51,13 @@
     }
     .card h2 {
       font-size: 1.5rem;
+      width: 100px;
+      margin-left: auto;
+      margin-right: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 30px;
     }
     .card p {
       font-size: 3rem;
@@ -62,6 +70,19 @@
         text-align: center;
         font-size: 1.5rem;
         padding: 0.5rem;
+    }
+    .smallbtn {
+      position: absolute;
+      right: 15px;
+      top: 5px;
+      width: 50px;
+    }
+    .cancel {
+      position: absolute;
+      left: 15px;
+      top: 5px;
+      width: 50px;
+      display: none;
     }
     @media (prefers-color-scheme: dark) {
       button {
@@ -96,7 +117,7 @@
       <div class="cards">
         <div class="card">
           <h2>
-            Temperature
+            &#x1F321; Now
           </h2>
           <p>
             <span id="temperature">-</span> &deg;C
@@ -114,42 +135,46 @@
         </div>
         <div class="card">
           <h2 title="Target temperature inside high start/end time. Will heat to this target + 0.25, then cool until this target - 0.25.">
-            High Target Temperature
+            &#x1F321; High Target <button id="highBtnE" class="smallbtn" onclick="editTemp('high')">&#x1F4DD;</button>
+            <button id="highBtnC" class="cancel" onclick="cancelTemp('high')">&#x27F2;</button>
           </h2>
           <p>
-            <span id="temperatureTargetHigh">24.0</span> &deg;C
+            <span id="highTemperature">24.0</span> &deg;C
             <br>
-            <input id="inputTargetHigh" onchange="setTargetTemperature('High')" oninput="moveTargetTemperature('High')" type="range" min="20" max="28" step="0.5" value="24">
+            <input id="highTarget" oninput="moveTargetTemperature('high')" type="range" min="20" max="28" step="0.5" value="24" disabled>
           </p>
         </div>
         <div class="card">
           <h2 title="Target temperature outside high start/end time. Set to 17 to essentially turn heating off during this time.">
-            Low Target Temperature
+            &#x1F321; Low Target <button id="lowBtnE" class="smallbtn" onclick="editTemp('low')">&#x1F4DD;</button>
+            <button id="lowBtnC" class="cancel" onclick="cancelTemp('low')">&#x27F2;</button>
           </h2>
           <p>
-            <span id="temperatureTargetLow">22.0</span> &deg;C
+            <span id="lowTemperature">22.0</span> &deg;C
             <br>
-            <input id="inputTargetLow" onchange="setTargetTemperature('Low')" oninput="moveTargetTemperature('Low')" type="range" min="17" max="25" step="0.5" value="22">
+            <input id="lowTarget" oninput="moveTargetTemperature('low')" type="range" min="17" max="25" step="0.5" value="22" disabled>
           </p>
         </div>
         <div class="card">
           <h2>
-            High Start Time
+            High Start <button id="onBtnE" class="smallbtn" onclick="editTime('on')">&#x1F4DD;</button>
+            <button id="onBtnC" class="cancel" onclick="cancelTime('on')">&#x27F2;</button>
           </h2>
           <p>
             <span id="onTime">12:00 AM</span>
             <br>
-            <input id="onTimeInput" onchange="setTime('on')" oninput="moveTime('on')" type="range" min="0" max="1410" step="30" value="0">
+            <input id="onTimeInput" oninput="moveTime('on')" type="range" min="0" max="1410" step="30" value="0" disabled>
           </p>
         </div>
         <div class="card">
           <h2>
-            High End Time
+            High End <button id="offBtnE" class="smallbtn" onclick="editTime('off')">&#x1F4DD;</button>
+            <button id="offBtnC" class="cancel" onclick="cancelTime('off')">&#x27F2;</button>
           </h2>
           <p>
             <span id="offTime">12:00 AM</span>
             <br>
-            <input id="offTimeInput" onchange="setTime('off')" oninput="moveTime('off')" type="range" min="0" max="1410" step="30" value="0">
+            <input id="offTimeInput" oninput="moveTime('off')" type="range" min="0" max="1410" step="30" value="0" disabled>
           </p>
         </div>
       </div>
