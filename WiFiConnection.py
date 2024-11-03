@@ -15,15 +15,17 @@ class WiFiConnection:
     def __init__(self):
         pass
 
+
     @classmethod
-    def start_station_mode(cls, print_progress=False):
+    def do_connect(self, print_progress=False):
+        network.hostname("heating")
         # set WiFi to station interface
-        cls.wlan = network.WLAN(network.STA_IF)
+        self.wlan = network.WLAN(network.STA_IF)
         # activate the network interface
-        cls.wlan.active(True)
+        self.wlan.active(True)
         # connect to wifi network
-        cls.wlan.connect(secrets.SSID, secrets.PASSWORD)
-        cls.status = network.STAT_CONNECTING
+        self.wlan.connect(secrets.SSID, secrets.PASSWORD)
+        self.status = network.STAT_CONNECTING
         if print_progress:
             print("Connecting to Wi-Fi - please wait")
         max_wait = 20
@@ -37,26 +39,34 @@ class WiFiConnection:
                 -1  STAT_CONNECT_FAIL -- failed due to other problems,
                 3   STAT_GOT_IP -- connection successful.
             """
-            if cls.wlan.status() < 0 or cls.wlan.status() >= 3:
+            if self.wlan.status() < 0 or self.wlan.status() >= 3:
                 # connection attempt finished
                 break
             max_wait -= 1
             utime.sleep(0.5)
 
         # check connection
-        cls.status = cls.wlan.status()
-        if cls.wlan.status() != 3:
+        self.status = self.wlan.status()
+        if self.wlan.status() != 3:
             # No connection
             if print_progress:
                 print("Connection Failed")
             return False
         else:
             # connection successful
-            config = cls.wlan.ifconfig()
-            cls.ip = config[0]
-            cls.subnet_mask = config[1]
-            cls.gateway = config[2]
-            cls.dns_server = config[3]
+            config = self.wlan.ifconfig()
+            self.ip = config[0]
+            self.subnet_mask = config[1]
+            self.gateway = config[2]
+            self.dns_server = config[3]
             if print_progress:
-                print('ip = ' + str(cls.ip))
+                print('ip = ' + str(self.ip))
             return True
+
+    @classmethod
+    def is_connected(cls):
+        if cls.wlan:
+            return cls.wlan.isconnected()
+        else:
+            return False
+    

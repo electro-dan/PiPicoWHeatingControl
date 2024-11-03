@@ -9,24 +9,34 @@ from ds18x20 import DS18X20
 from RequestParser import RequestParser
 from ResponseBuilder import ResponseBuilder
 from WiFiConnection import WiFiConnection
+from machine import WDT
+from machine import Timer
 
+# Watchdog timer - set to 8 seconds to allow enough time for WiFi connect attempts
+# Will reset the Pico if unresponsive after 8 seconds. Use wdt.feed() to indicate 'alive'
+#wdt = WDT(timeout=8000) #timeout is in ms
+ 
 # set up temperature sensor with onewire
 ow = OneWire(Pin(22))
 ds = DS18X20(ow)
 r = ds.scan()[0]
+# Pin that activates the heating via the opto-coupler
 heating_pin = Pin(16, Pin.OUT)
 
-is_heating = 0
-heating_state = 0
+is_heating = False # Default to off
+heating_state = False # Default to off
 ds18b20_temperature = 0.00
-target_temperature = 20.0
-on_time = 570 # 9:30
+target_temperature_low = 22.0
+target_temperature_high = 24.0
+on_time = 450 # 7:30
 off_time = 1290 # 21:30
+counter = 0
 
 # coroutine to handle HTTP request
 async def handle_request(reader, writer):
     global heating_state
-    global target_temperature
+    global target_temperature_low
+    global target_temperature_high
     global on_time
     global off_time
     try:
@@ -41,39 +51,40 @@ async def handle_request(reader, writer):
         if request.url_match("/api"):
             action = request.get_action()
             if action == 'get_status':
-                # turn on requested coloured led
-                # returns json object with led states
+                # returns json object with the heating states and timer/temperature settings
                 response_obj = {
                     'status': 'OK',
-                    'is_heating': "ON" if is_heating else "OFF",
-                    'heating_state': "ENABLED" if heating_state else "DISABLED",
+                    'is_heating': is_heating,
+                    'heating_state': heating_state,
                     'temperature_value': ds18b20_temperature,
-                    'target_temperature': target_temperature,
+                    'target_temperature_low': target_temperature_low,
+                    'target_temperature_high': target_temperature_high,
                     'on_time': on_time,
                     'off_time': off_time
                 }
                 response_builder.set_body_from_dict(response_obj)
             elif action == 'trigger_heating':
-                # turn on requested coloured led
-                if heating_state == 0:
-                    heating_state = 1
-                else:
-                    heating_state = 0
+                # Permanently enable or disable heating
+                heating_state = not heating_state
                 
                 response_obj = {
                     'status': 'OK',
-                    'heating_state': "ENABLED" if heating_state else "DISABLED"
+                    'heating_state': heating_state
                 }
                 response_builder.set_body_from_dict(response_obj)
             elif action == "set_target_temperature":
-                # Set target temperature
+                # Set target temperatures for high or low temperature modes
+                low_or_high = request.data()['low_or_high']
                 new_target = float(request.data()['new_target'])
-                if new_target >= 20 and new_target <= 28:
-                    target_temperature = new_target
+                if new_target >= 20 and new_target <= 28: # Has to be between 20 and 28 degrees
+                    if low_or_high == "low":
+                        target_temperature_low = new_target
+                    else:
+                        target_temperature_high = new_target
                     save_data()
                     response_obj = {
                         'status': 'OK',
-                        'target_temperature': target_temperature
+                        'target_temperature': new_target
                     }
                     response_builder.set_body_from_dict(response_obj)
                 else:
@@ -84,10 +95,10 @@ async def handle_request(reader, writer):
                     response_builder.set_body_from_dict(response_obj)
                     response_builder.set_status(400)
             elif action == "set_time":
-                # Set off time
+                # Set on or off time for high temperature setting
                 on_or_off = request.data()['on_or_off']
                 new_time = int(request.data()['new_time'])
-                if new_time >= 0 and new_time <= 1410:
+                if new_time >= 0 and new_time <= 1410: # Has to be between 12AM and 11:30PM
                     if on_or_off == "on":
                         on_time = new_time
                     else:
@@ -133,83 +144,115 @@ async def main():
     server = uasyncio.start_server(handle_request, "0.0.0.0", 80)
     uasyncio.create_task(server)
 
-    ntptime.settime()
-    print(time.localtime())
+    updated_today = False
 
-    # start the heater task
-    print('Starting heater scheduler...')
-    counter = 0
     while True:
-        if counter == 30:
-            # Read temperature
-            ds.convert_temp()
-            # 1 sec wait before reading
-            await uasyncio.sleep(1)
-            counter = 0
+        # This loop just monitors the WiFi connection and tries re-connects if disconnected
+        # Connect to WiFi if disconnected
+        if not WiFiConnection.is_connected():
+            # try to connect again
+            print('WiFi connect...')
+            if WiFiConnection.do_connect(True):
+                # Time will be in UTC only
+                try:
+                    ntptime.settime()
+                except:
+                    print("NTP timeout")
+                finally:
+                    print(time.localtime())
+        else:
+            # After midnight, update NTP time once a day
+            if time.localtime()[3] == 0:
+                if not updated_today:
+                    try:
+                        ntptime.settime()
+                        updated_today = True
+                    except:
+                        print("NTP timeout")
+                    finally:
+                        print(time.localtime())
+            else:
+                updated_today = False
 
-        global ds18b20_temperature
-        global heating_state
-        global is_heating
+        await uasyncio.sleep_ms(2000)
+        
+        #wdt.feed() # Reset watchdog
 
+# Main timer interrupt - runs every second
+# This will activate / deactivate heating based on whether the local time is within an active timer 
+# and whether the temperature limit has been reached
+# Will measure the temperature every 30 seconds
+def timer_check_interrupt(pin):
+    global ds18b20_temperature
+    global heating_state
+    global is_heating
+    global counter
+
+    # 30 seconds between temperature readings
+    if counter == 29:
+        # Read temperature
+        ds.convert_temp()
+    # 1 sec wait before reading result
+    if counter == 30:
         # Read temperature conversion
         ds18b20_temperature = round(ds.read_temp(r), 2)
+        # Reset counter
+        counter = 0
 
-        # Convert local time into minutes since midnight
-        current_time = (time.localtime()[3] * 60) + time.localtime()[4]
-        # If on/off times are not equal, change heating state (will heat) if local time matches
-        if on_time != off_time:
-            if current_time == on_time:
-                heating_state = 1
-            if current_time == off_time:
-                heating_state = 0
-        
-        # If heating state (will heat) is true
-        if heating_state:
-            # Turn off heating if temperature is 0.25 degrees above target
-            if is_heating == 1 and ds18b20_temperature > (target_temperature + 0.25):
-                is_heating = 0
-            # Turn on heating is temperature is 0.25 degrees below target
-            elif is_heating == 0 and ds18b20_temperature < (target_temperature - 0.25):
-                is_heating = 1
-        else:
-            is_heating = 0
-        
-        # Enable or disable the output
-        heating_pin.value(is_heating)
+    # Temperature to target - default to high
+    target_temperature = target_temperature_high
 
-        # 30 second pause between temperature readings
-        await uasyncio.sleep(1)
+    # Convert local time into minutes since midnight
+    current_time = (time.localtime()[3] * 60) + time.localtime()[4]
+    # If on/off times are not equal, change heating state (will heat) if local time matches
+    if on_time != off_time:
+        if current_time < on_time or current_time > off_time:
+            target_temperature = target_temperature_low
 
-        counter += 1
+    # If heating state (will heat) is true
+    if heating_state:
+        # Turn off heating if temperature is 0.25 degrees above target
+        if is_heating and ds18b20_temperature > (target_temperature + 0.25):
+            is_heating = False
+        # Turn on heating is temperature is 0.25 degrees below target
+        elif not is_heating and ds18b20_temperature < (target_temperature - 0.25):
+            is_heating = True
+    else:
+        is_heating = False
+    
+    # Enable or disable the output
+    heating_pin.value(is_heating)
+
+    counter += 1
 
 # Save variables to the eeprom
 def save_data():
     print('Saving variables...')
     with open('config.txt', 'w+') as f:
-        f.write(str(target_temperature) + "|" + str(on_time) + "|" + str(off_time))
+        f.write(str(target_temperature_high) + "|" + str(on_time) + "|" + str(off_time) + '|' + str(target_temperature_low))
 
 # Read variables from the eeprom - done at boot
 def read_data():
-    global target_temperature
+    global target_temperature_low
+    global target_temperature_high
     global on_time
     global off_time
 
     with open('config.txt', 'r') as f:
         fdata = f.readline()
-        print(fdata)
-        target_temperature = float(fdata.split("|")[0])
-        on_time = int(fdata.split("|")[1])
-        off_time = int(fdata.split("|")[2])
+        if len(fdata.split("|")) == 4:
+            target_temperature_high = float(fdata.split("|")[0])
+            on_time = int(fdata.split("|")[1])
+            off_time = int(fdata.split("|")[2])
+            target_temperature_low = float(fdata.split("|")[3])
 
 
 # Entry Here
-
-# Connect to WiFi
-if not WiFiConnection.start_station_mode(True):
-    raise RuntimeError('network connection failed')
-
 # Read any existing saved data
 read_data()
+
+# Start a timer to interrupt every 1 second
+timer_check = Timer(mode=Timer.PERIODIC, period=1000, callback=timer_check_interrupt)
 
 # start asyncio task and loop
 try:
