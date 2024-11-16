@@ -9,7 +9,7 @@ https://github.com/getis/micropython-web-control-panel
 https://microcontrollerslab.com/raspberry-pi-pico-ds18b20-web-server-weather-station/  
 https://www.multiwingspan.co.uk/pico.php?page=wasync  
 
-Update 1.2 16th November 2024
+#### Update 1.2 16th November 2024
 Now uses microdot as the web server https://github.com/miguelgrinberg/microdot/ 
 
 This allows Server Side Events (SSE) to be used to push updates to the browser without polling, improving the UI experience. 
