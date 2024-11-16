@@ -6,9 +6,10 @@ import uasyncio
 from machine import Pin
 from onewire import OneWire
 from ds18x20 import DS18X20
-from RequestParser import RequestParser
-from ResponseBuilder import ResponseBuilder
 from WiFiConnection import WiFiConnection
+from microdot.microdot import Microdot
+from microdot.microdot import send_file
+from microdot.sse import with_sse
 from machine import WDT
 from machine import Timer
 
@@ -32,117 +33,138 @@ on_time = 450 # 7:30
 off_time = 1290 # 21:30
 counter = 0
 
-# coroutine to handle HTTP request
-async def handle_request(reader, writer):
+app = Microdot()
+
+# root route handler
+@app.get('/')
+async def index(request):
+    return send_file('/index.html')
+
+@app.get('/heating.js')
+async def js(request):
+    return send_file('/heating.js')
+
+@app.route('/events')
+@with_sse
+async def events(request, sse):
+    # Stream status to client every second
+    while True:
+        response_obj = {
+            'status': 'OK',
+            'is_heating': is_heating,
+            'heating_state': heating_state,
+            'temperature_value': ds18b20_temperature,
+            'target_temperature_low': target_temperature_low,
+            'target_temperature_high': target_temperature_high,
+            'on_time': on_time,
+            'off_time': off_time
+        }
+        await sse.send(response_obj)
+        # Pause between sending again
+        await uasyncio.sleep(1)
+
+# Alternate GET api just returns status
+@app.get('/api')
+async def api_get(request):
+    # Return current time, heating and timers status
+    response_obj = {
+        'status': 'OK',
+        'is_heating': is_heating,
+        'heating_state': heating_state,
+        'temperature_value': ds18b20_temperature,
+        'target_temperature_low': target_temperature_low,
+        'target_temperature_high': target_temperature_high,
+        'on_time': on_time,
+        'off_time': off_time
+    }
+    return response_obj
+
+# Essentially a basic REST api for settings - POST only, to one end point
+@app.post('/api')
+async def api_post(request):
     global heating_state
     global target_temperature_low
     global target_temperature_high
     global on_time
     global off_time
-    try:
-        # await allows other tasks to run while waiting for data
-        raw_request = await reader.read(2048)
-
-        request = RequestParser(raw_request)
-
-        response_builder = ResponseBuilder()
-
-        # filter out api request
-        if request.url_match("/api"):
-            action = request.get_action()
-            if action == 'get_status':
-                # returns json object with the heating states and timer/temperature settings
-                response_obj = {
-                    'status': 'OK',
-                    'is_heating': is_heating,
-                    'heating_state': heating_state,
-                    'temperature_value': ds18b20_temperature,
-                    'target_temperature_low': target_temperature_low,
-                    'target_temperature_high': target_temperature_high,
-                    'on_time': on_time,
-                    'off_time': off_time
-                }
-                response_builder.set_body_from_dict(response_obj)
-            elif action == 'trigger_heating':
-                # Permanently enable or disable heating
-                heating_state = not heating_state
-                
-                response_obj = {
-                    'status': 'OK',
-                    'heating_state': heating_state
-                }
-                response_builder.set_body_from_dict(response_obj)
-            elif action == "set_target_temperature":
-                # Set target temperatures for high or low temperature modes
-                low_or_high = request.data()['low_or_high']
-                new_target = float(request.data()['new_target'])
-                if new_target >= 20 and new_target <= 28: # Has to be between 20 and 28 degrees
-                    if low_or_high == "low":
-                        target_temperature_low = new_target
-                    else:
-                        target_temperature_high = new_target
-                    save_data()
-                    response_obj = {
-                        'status': 'OK',
-                        'target_temperature': new_target
-                    }
-                    response_builder.set_body_from_dict(response_obj)
-                else:
-                    response_obj = {
-                        'status': 'ERROR',
-                        'message': "Invalid target sent"
-                    }
-                    response_builder.set_body_from_dict(response_obj)
-                    response_builder.set_status(400)
-            elif action == "set_time":
-                # Set on or off time for high temperature setting
-                on_or_off = request.data()['on_or_off']
-                new_time = int(request.data()['new_time'])
-                if new_time >= 0 and new_time <= 1410: # Has to be between 12AM and 11:30PM
-                    if on_or_off == "on":
-                        on_time = new_time
-                    else:
-                        off_time = new_time
-                    save_data()
-                    response_obj = {
-                        'status': 'OK',
-                        'time_set': new_time
-                    }
-                    response_builder.set_body_from_dict(response_obj)
-                else:
-                    response_obj = {
-                        'status': 'ERROR',
-                        'message': "Invalid time sent"
-                    }
-                    response_builder.set_body_from_dict(response_obj)
-                    response_builder.set_status(400)
-
+    
+    action = request.json["action"]
+    if action == 'get_status':
+        # Return current time, heating and timers status
+        response_obj = {
+            'status': 'OK',
+            'is_heating': is_heating,
+            'heating_state': heating_state,
+            'temperature_value': ds18b20_temperature,
+            'target_temperature_low': target_temperature_low,
+            'target_temperature_high': target_temperature_high,
+            'on_time': on_time,
+            'off_time': off_time
+        }
+        return response_obj
+    elif action == 'trigger_heating':
+        # Permanently turn heating off (holiday mode) or on
+        heating_state = not heating_state
+        
+        response_obj = {
+            'status': 'OK',
+            'heating_state': heating_state
+        }
+        return response_obj
+    elif action == "set_target_temperature":
+        # Set target temperatures for high or low temperature modes
+        low_or_high = request.json['low_or_high']
+        new_target = float(request.json['new_target'])
+        if new_target >= 20 and new_target <= 28: # Has to be between 20 and 28 degrees
+            if low_or_high == "low":
+                target_temperature_low = new_target
             else:
-                # unknown action
-                response_builder.set_status(404)
-
-        # try to serve static file
+                target_temperature_high = new_target
+            save_data()
+            response_obj = {
+                'status': 'OK',
+                'target_temperature': new_target
+            }
+            return response_obj
         else:
-            response_builder.serve_static_file(request.url, "/index.html")
-
-        # build response message
-        response_builder.build_response()
-        # send response back to client
-        writer.write(response_builder.response)
-        # allow other tasks to run while data being sent
-        await writer.drain()
-        await writer.wait_closed()
-
-    except OSError as e:
-        print('connection error ' + str(e.errno) + " " + str(e))
-
+            response_obj = {
+                'status': 'ERROR',
+                'message': "Invalid target sent"
+            }
+            return response_obj, 400
+    elif action == "set_time":
+        # Set on or off time for high temperature setting
+        on_or_off = request.json['on_or_off']
+        new_time = int(request.json['new_time'])
+        if new_time >= 0 and new_time <= 1410: # Has to be between 12AM and 11:30PM
+            if on_or_off == "on":
+                on_time = new_time
+            else:
+                off_time = new_time
+            save_data()
+            response_obj = {
+                'status': 'OK',
+                'time_set': new_time
+            }
+            return response_obj
+        else:
+            response_obj = {
+                'status': 'ERROR',
+                'message': "Invalid time sent"
+            }
+            return response_obj, 400
+    else:
+        response_obj = {
+                'status': 'ERROR',
+                'message': "Unknown action"
+            }
+        return response_obj, 400
 
 # main coroutine to boot async tasks
 async def main():
     # start web server task
     print('Setting up webserver...')
-    server = uasyncio.start_server(handle_request, "0.0.0.0", 80)
-    uasyncio.create_task(server)
+    uasyncio.create_task(app.start_server(debug=False, port=80))
 
     updated_today = False
 
