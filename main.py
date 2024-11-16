@@ -49,8 +49,6 @@ async def js(request):
 async def events(request, sse):
     # Stream status to client every second
     while True:
-        current_day = time.localtime()[6] + 1
-        current_time = (time.localtime()[3] * 60) + time.localtime()[4]
         response_obj = {
             'status': 'OK',
             'is_heating': is_heating,
@@ -68,8 +66,6 @@ async def events(request, sse):
 # Alternate GET api just returns status
 @app.get('/api')
 async def api_get(request):
-    current_day = time.localtime()[6] + 1
-    current_time = (time.localtime()[3] * 60) + time.localtime()[4]
     # Return current time, heating and timers status
     response_obj = {
         'status': 'OK',
@@ -94,8 +90,6 @@ async def api_post(request):
     
     action = request.json["action"]
     if action == 'get_status':
-        current_day = time.localtime()[6] + 1
-        current_time = (time.localtime()[3] * 60) + time.localtime()[4]
         # Return current time, heating and timers status
         response_obj = {
             'status': 'OK',

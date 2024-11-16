@@ -33,9 +33,9 @@ function getStatus() {
 
 // Populate the fields and controls with the current status from the Pico's JSON response
 function updateStatus(strRequest) {
-    var json_response = JSON.parse(this.responseText);
-    console.log(json_response);
-
+    console.log(strRequest);
+    var json_response = JSON.parse(strRequest);
+    
     if (json_response.status == "OK") {
         document.getElementById("isHeating").innerHTML = (json_response.is_heating ? "ON" : "OFF");
         document.getElementById("heatingState").innerHTML = (json_response.heating_state ? "ENABLED" : "DISABLED");
@@ -51,8 +51,6 @@ function updateStatus(strRequest) {
             document.getElementById("offTimeInput").value = json_response.off_time;
         }
     }
-    xhttp.open("POST", "/api", true);
-    xhttp.send(formData);
 }
 
 // Functions to prevent the interval resetting displayed values when changing a control
