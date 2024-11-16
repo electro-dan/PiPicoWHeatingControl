@@ -1,51 +1,67 @@
-var isChanging = false;
-var changingTimeout;
+var isChanging = false; // Used to prevent SSE updating controls when being edited
+var isListening = false; // Used to prevent multiple SSE running
 
-// Called on load, then every second
+// SSE called on load, streams from pico to browser
+function streamStatus() {
+    if (!isListening) {
+        isListening = true;
+        var evtSrc = new EventSource("events");
+        evtSrc.onmessage = function(event) {
+            updateStatus(event.data);
+        }
+        evtSrc.onerror = function(error) {
+            console.log(error);
+            isListening = false;
+        }
+    }
+}
+
+// Legacy polling method (not used)
 function getStatus() {
-    const formData = new FormData();
-    formData.append("action", "get_status");
+    const jsonData = {
+        "action": "get_status"
+    };
+    // Post back to the python service
     const xhttp = new XMLHttpRequest();
     xhttp.onload = function() {
-        var json_response = JSON.parse(this.responseText);
-        console.log(json_response);
+        updateStatus(this.responseText);
+    }
+    xhttp.open("POST", "/api", true);
+    xhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+    xhttp.send(JSON.stringify(jsonData));
+}
 
-        if (json_response.status == "OK") {
-            document.getElementById("isHeating").innerHTML = (json_response.is_heating ? "ON" : "OFF");
-            document.getElementById("heatingState").innerHTML = (json_response.heating_state ? "ENABLED" : "DISABLED");
-            document.getElementById("temperature").innerHTML = json_response.temperature_value;
-            if (!isChanging) {
-                document.getElementById("highTemperature").innerHTML = json_response.target_temperature_high;
-                document.getElementById("highTargetInput").value = json_response.target_temperature_high;
-                document.getElementById("lowTemperature").innerHTML = json_response.target_temperature_low;
-                document.getElementById("lowTargetInput").value = json_response.target_temperature_low;
-                document.getElementById("onTime").innerHTML = formatTime(json_response.on_time);
-                document.getElementById("onTimeInput").value = json_response.on_time;
-                document.getElementById("offTime").innerHTML = formatTime(json_response.off_time);
-                document.getElementById("offTimeInput").value = json_response.off_time;
-            }
+// Populate the fields and controls with the current status from the Pico's JSON response
+function updateStatus(strRequest) {
+    var json_response = JSON.parse(this.responseText);
+    console.log(json_response);
+
+    if (json_response.status == "OK") {
+        document.getElementById("isHeating").innerHTML = (json_response.is_heating ? "ON" : "OFF");
+        document.getElementById("heatingState").innerHTML = (json_response.heating_state ? "ENABLED" : "DISABLED");
+        document.getElementById("temperature").innerHTML = json_response.temperature_value;
+        if (!isChanging) {
+            document.getElementById("highTemperature").innerHTML = json_response.target_temperature_high;
+            document.getElementById("highTargetInput").value = json_response.target_temperature_high;
+            document.getElementById("lowTemperature").innerHTML = json_response.target_temperature_low;
+            document.getElementById("lowTargetInput").value = json_response.target_temperature_low;
+            document.getElementById("onTime").innerHTML = formatTime(json_response.on_time);
+            document.getElementById("onTimeInput").value = json_response.on_time;
+            document.getElementById("offTime").innerHTML = formatTime(json_response.off_time);
+            document.getElementById("offTimeInput").value = json_response.off_time;
         }
     }
     xhttp.open("POST", "/api", true);
     xhttp.send(formData);
 }
 
-// Functions to prevent the interval reseting displayed values when changing a control
-function resetChanging() {
-    isChanging = false;
-}
-
+// Functions to prevent the interval resetting displayed values when changing a control
 function startChange() {
-    clearTimeout(changingTimeout);
     isChanging = true;
 }
 
-function timeoutChange() {
-    changingTimeout = setTimeout(resetChanging, 10000);
-}
-
 function endChange() {
-    changingTimeout = setTimeout(resetChanging, 1000);
+    isChanging = false;
 }
 
 // Manually trigger heating on or off
@@ -53,6 +69,7 @@ function triggerHeating() {
     const jsonData = {
         "action": "trigger_heating"
     };
+    // Post back to the python service
     const xhttp = new XMLHttpRequest();
     xhttp.onload = function() {
         var json_response = JSON.parse(this.responseText);
@@ -78,9 +95,7 @@ function moveTargetTemperature(lowOrHigh) {
 
 // This function is used when the control slider is dragged
 function moveTime(onOrOff) {
-    startChange();
     document.getElementById(onOrOff + "Time").innerHTML = formatTime(document.getElementById(onOrOff + "TimeInput").value);
-    timeoutChange();
 }
 
 // Used by above functions to format the set time into 12h format hh:mm
@@ -98,6 +113,7 @@ function formatTime(timeIn) {
 function editTemp(lowOrHigh) {
     // Check state of a control
     if (document.getElementById(lowOrHigh + "TargetInput").disabled) {
+        startChange();
         // Enable
         document.getElementById(lowOrHigh + "TargetInput").disabled = false;
         // Change to save icon
@@ -105,8 +121,6 @@ function editTemp(lowOrHigh) {
         // Show cancel button
         document.getElementById(lowOrHigh + "BtnC").style.display = "block";
     } else {
-        startChange();
-
         // Apply the changes
         const jsonData = {
             "action": "set_target_temperature",
@@ -122,7 +136,7 @@ function editTemp(lowOrHigh) {
                 // Show new temperature target
                 document.getElementById(lowOrHigh + "Temperature").innerHTML = json_response.target_temperature;
             } else {
-                alert("Error setting target temperature");
+                alert("Error setting target temperature: " + json_response.message);
             }
         }
         xhttp.open("POST", "/api", true);
@@ -135,9 +149,8 @@ function editTemp(lowOrHigh) {
         document.getElementById(lowOrHigh + "BtnE").innerHTML = "&#x1F4DD;";
         // Hide cancel button
         document.getElementById(lowOrHigh + "BtnC").style.display = "none";
-        endChange();
-        // Get status after one second
-        setTimeout(getStatus, 1100);
+        // Delay resuming the SSE by over a second, allowing time for the Pico to receive and response with the new state
+        setTimeout(endChange(), 1200);
     }
 }
 
@@ -148,13 +161,13 @@ function cancelTemp(lowOrHigh) {
     document.getElementById(lowOrHigh + "BtnE").innerHTML = "&#x1F4DD;";
     // Hide cancel button
     document.getElementById(lowOrHigh + "BtnC").style.display = "none";
-    // Get original status
-    getStatus();
+    endChange();
 }
 
 function editTime(onOrOff) {
     // Check state of a control
     if (document.getElementById(onOrOff + "TimeInput").disabled) {
+        startChange();
         // Enable
         document.getElementById(onOrOff + "TimeInput").disabled = false;
         // Change to save icon
@@ -162,8 +175,6 @@ function editTime(onOrOff) {
         // Show cancel button
         document.getElementById(onOrOff + "BtnC").style.display = "block";
     } else {
-        startChange();
-
         // Apply the changes
         const jsonData = {
             "action": "set_time",
@@ -179,7 +190,7 @@ function editTime(onOrOff) {
                 // Show new time
                 document.getElementById(onOrOff + "Time").innerHTML = formatTime(json_response.time_set);
             } else {
-                alert("Error setting on/off time");
+                alert("Error setting on/off time: " + json_response.message);
             }
         }
         xhttp.open("POST", "/api", true);
@@ -192,9 +203,8 @@ function editTime(onOrOff) {
         document.getElementById(onOrOff + "BtnE").innerHTML = "&#x1F4DD;";
         // Hide cancel button
         document.getElementById(onOrOff + "BtnC").style.display = "none";
-        endChange();
-        // Get status after one second
-        setTimeout(getStatus, 1100);
+        // Delay resuming the SSE by over a second, allowing time for the Pico to receive and response with the new state
+        setTimeout(endChange(), 1200);
     }
 }
 
@@ -205,13 +215,13 @@ function cancelTime(onOrOff) {
     document.getElementById(onOrOff + "BtnE").innerHTML = "&#x1F4DD;";
     // Hide cancel button
     document.getElementById(onOrOff + "BtnC").style.display = "none";
-    // Get original status
-    getStatus();
+    endChange();
 }
 
-//setInterval(getStatus, 1000);
-// Read status when page is focused
-window.onfocus = function() {
-    getStatus();
-}
-getStatus();
+// These events will start the server side event source to stream status
+// This one is for mobiles when the browser/tab resumes
+document.addEventListener("visibilitychange", streamStatus, false);
+// For desktops when tab is focused
+document.addEventListener("focus", streamStatus, false);
+// For initial window load
+window.addEventListener("load", streamStatus);
