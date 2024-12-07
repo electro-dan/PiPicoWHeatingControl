@@ -22,5 +22,23 @@
         "js",
         "css",
         "mpy"
+    ],
+    "python.terminal.activateEnvironment": false,
+    "micropico.pyIgnore": [
+        "**/.picowgo",
+        "**/.micropico",
+        "**/.vscode",
+        "**/.gitignore",
+        "**/.git",
+        "**/.DS_Store",
+        "**/project.pico-go",
+        "**/env",
+        "**/venv",
+        "**/.venv",
+        "**/.idea",
+        "**/picoenv",
+        "microdot/helpers.py",
+        "microdot/microdot.py",
+        "microdot/sse.py"
     ]
 }
