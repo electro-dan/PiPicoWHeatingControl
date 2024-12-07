@@ -48,6 +48,7 @@ async def js(request):
 @with_sse
 async def events(request, sse):
     # Stream status to client every second
+    last_response_obj = {}
     while True:
         response_obj = {
             'status': 'OK',
@@ -59,7 +60,10 @@ async def events(request, sse):
             'on_time': on_time,
             'off_time': off_time
         }
-        await sse.send(response_obj)
+        if response_obj != last_response_obj:
+            last_response_obj = response_obj
+            await sse.send(response_obj)
+            
         # Pause between sending again
         await uasyncio.sleep(1)
 
