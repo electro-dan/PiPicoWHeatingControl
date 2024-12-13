@@ -26,8 +26,8 @@ I have also updated the project to require pre-compiling the microdot web server
     # change version per OS
     sudo apt install python3.12-venv 
     python3 -m venv picoenv
-    # change version per micropython installed on your Pi, e.g. RPI_PICO_W-20240222-v1.22.2.uf2
-    picoenv/bin/pip install mpy-cross==1.22.2 
+    # change version per micropython installed on your Pi, e.g. RPI_PICO_W-20241129-v1.24.1.uf2
+    picoenv/bin/pip install mpy-cross==1.24.1.post2
     picoenv/bin/mpy-cross microdot/microdot.py
     picoenv/bin/mpy-cross microdot/helpers.py
     picoenv/bin/mpy-cross microdot/sse.py
