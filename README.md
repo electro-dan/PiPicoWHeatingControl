@@ -23,9 +23,11 @@ There were a couple of issues with the web server I think were memory related, s
 
 I have also updated the project to require pre-compiling the microdot web server. This is done easily on by creating a virtual environment and using pip to install mpy-cross. Example below for Linux:
 
-    sudo apt install python3.12-venv # change version per OS
+    # change version per OS
+    sudo apt install python3.12-venv 
     python3 -m venv picoenv
-    picoenv/bin/pip install mpy-cross==1.22.2
+    # change version per micropython installed on your Pi, e.g. RPI_PICO_W-20240222-v1.22.2.uf2
+    picoenv/bin/pip install mpy-cross==1.22.2 
     picoenv/bin/mpy-cross microdot/microdot.py
     picoenv/bin/mpy-cross microdot/helpers.py
     picoenv/bin/mpy-cross microdot/sse.py
