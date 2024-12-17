@@ -12,6 +12,10 @@ from microdot.microdot import send_file
 from microdot.sse import with_sse
 from machine import WDT
 from machine import Timer
+import gc
+# Chunk response smaller to reduce memory errors
+from microdot.microdot import Response
+Response.send_file_buffer_size = 256
 
 # Watchdog timer - set to 8 seconds to allow enough time for WiFi connect attempts
 # Will reset the Pico if unresponsive after 8 seconds. Use wdt.feed() to indicate 'alive'
@@ -34,6 +38,7 @@ off_time = 1290 # 21:30
 counter = 0
 
 app = Microdot()
+gc.enable()
 
 # root route handler
 @app.get('/')
@@ -250,6 +255,9 @@ def timer_check_interrupt(pin):
     heating_pin.value(is_heating)
 
     counter += 1
+
+    gc.collect()
+    gc.threshold(gc.mem_free() // 4 + gc.mem_alloc())
 
 # Save variables to the eeprom
 def save_data():
