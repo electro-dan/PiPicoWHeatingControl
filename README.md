@@ -1,4 +1,9 @@
 # PiPicoWHeatingControl
+
+DEPRECATED - replaced with C++ version: https://github.com/electro-dan/PiPicoW_CMongoose_HeatingControl
+
+----
+
 Using a Raspberry Pi Pico, control an electric heater and display the room temperature (using DS18B20) via a web page.
 
 For more information, see:  
